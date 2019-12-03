@@ -9,7 +9,8 @@ fn main() -> Result<()> {
     let wires = input
         .lines()
         .map(wires_from_str)
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()
+        .context("cannot parse input")?;
     let (wire1, wire2) = wires
         .iter()
         .map(Vec::as_slice)
@@ -17,24 +18,16 @@ fn main() -> Result<()> {
         .collect_tuple()
         .context("not enough lines")?;
     let intersections = find_intersections(&wire1, &wire2);
-    let result = find_nearest_intersection_sum(&intersections).context("no intersection found")?;
+    let result = find_nearest_intersection(&intersections).context("no intersection found")?;
     println!("{}", result);
     Ok(())
 }
 
-#[allow(dead_code)]
-fn find_nearest_intersection(intersections: &[(i64, i64, i64)]) -> Option<i64> {
-    intersections
-        .iter()
-        .map(|(x, y, _)| (x.abs() + y.abs()))
-        .min()
+fn find_nearest_intersection(intersections: &[i64]) -> Option<i64> {
+    intersections.iter().min().copied()
 }
 
-fn find_nearest_intersection_sum(intersections: &[(i64, i64, i64)]) -> Option<i64> {
-    intersections.iter().map(|(_, _, length)| *length).min()
-}
-
-fn find_intersections(wire1: &[Segment], wire2: &[Segment]) -> Vec<(i64, i64, i64)> {
+fn find_intersections(wire1: &[Segment], wire2: &[Segment]) -> Vec<i64> {
     wire1
         .iter()
         .cartesian_product(wire2.iter())
@@ -46,14 +39,12 @@ fn find_intersections(wire1: &[Segment], wire2: &[Segment]) -> Vec<(i64, i64, i6
             | (
                 Segment::Vertical(x, y_range, vertical_length, y_start),
                 Segment::Horizontal(x_range, y, horizontal_length, x_start),
-            ) if x_range.contains(x) && y_range.contains(y) => Some((
-                *x,
-                *y,
+            ) if x_range.contains(x) && y_range.contains(y) => Some(
                 horizontal_length + vertical_length + (x - x_start).abs() + (y - y_start).abs(),
-            )),
+            ),
             _ => None,
         })
-        .filter(|(x, y, _)| *x != 0 || *y != 0)
+        .filter(|&length| length != 0)
         .collect()
 }
 
@@ -131,56 +122,32 @@ fn wires_from_str(s: &str) -> Result<Vec<Wire>> {
 #[test]
 fn test_parsing() {
     assert_eq!(
-        wires_from_str("R75,D30,U31,L32").unwrap(),
-        vec![
-            Wire::Right(75),
-            Wire::Down(30),
-            Wire::Up(31),
-            Wire::Left(32)
-        ]
+        wires_from_str("R75,D30,U31,L2").unwrap(),
+        vec![Wire::Right(75), Wire::Down(30), Wire::Up(31), Wire::Left(2)]
     );
 }
 
 #[test]
-fn test_part1() {
-    assert_eq!(
+fn test() {
+    let run = |wire1: &str, wire2: &str| -> i64 {
         find_nearest_intersection(&find_intersections(
-            &segments_from_wires(&wires_from_str("R75,D30,R83,U83,L12,D49,R71,U7,L72").unwrap()),
-            &segments_from_wires(&wires_from_str("U62,R66,U55,R34,D71,R55,D58,R83").unwrap()),
+            &segments_from_wires(&wires_from_str(wire1).unwrap()),
+            &segments_from_wires(&wires_from_str(wire2).unwrap()),
         ))
-        .unwrap(),
-        159
-    );
+        .unwrap()
+    };
     assert_eq!(
-        find_nearest_intersection(&find_intersections(
-            &segments_from_wires(
-                &wires_from_str("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51").unwrap()
-            ),
-            &segments_from_wires(&wires_from_str("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7").unwrap()),
-        ))
-        .unwrap(),
-        135
-    );
-}
-
-#[test]
-fn test_part2() {
-    assert_eq!(
-        find_nearest_intersection_sum(&find_intersections(
-            &segments_from_wires(&wires_from_str("R75,D30,R83,U83,L12,D49,R71,U7,L72").unwrap()),
-            &segments_from_wires(&wires_from_str("U62,R66,U55,R34,D71,R55,D58,R83").unwrap()),
-        ))
-        .unwrap(),
+        run(
+            "R75,D30,R83,U83,L12,D49,R71,U7,L72",
+            "U62,R66,U55,R34,D71,R55,D58,R83"
+        ),
         610
     );
     assert_eq!(
-        find_nearest_intersection_sum(&find_intersections(
-            &segments_from_wires(
-                &wires_from_str("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51").unwrap()
-            ),
-            &segments_from_wires(&wires_from_str("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7").unwrap()),
-        ))
-        .unwrap(),
+        run(
+            "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51",
+            "U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"
+        ),
         410
     );
 }
