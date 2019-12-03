@@ -14,3 +14,4 @@ path = "src/day2.rs"
 
 [dependencies]
 anyhow = "1.0.25"
+itertools = "0.8.2"
